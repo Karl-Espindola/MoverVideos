@@ -16,6 +16,7 @@ public class MyService extends Service {
     private boolean isServiceRunning = false;
     private Handler handler;
     private Runnable tarea;
+    File internalStorageDir = getFilesDir();
 
     @Override
     public void onCreate() {
@@ -56,11 +57,17 @@ public class MyService extends Service {
 
     private void startLoop() {
         tarea = new Runnable() {
+            File folder = new File(internalStorageDir.getPath());
+            File[] files = folder.listFiles();
             int cont = 0;
             @Override
             public void run() {
-                Log.i("Contador","Iteración: "+cont);
-                cont++;
+                //Log.i("Contador","Iteración: "+cont);
+                //cont++;
+
+                for( File file : files){
+                    Log.d("NombreArchivo", file.getName());
+                }
                 handler.postDelayed(this, 1000); // ejecutar lo que esta dentro del run cada 1 segundos
             }
         };
