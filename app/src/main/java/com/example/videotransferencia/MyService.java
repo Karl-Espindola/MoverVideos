@@ -1,12 +1,20 @@
 package com.example.videotransferencia;
 
 
+import android.Manifest;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.documentfile.provider.DocumentFile;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -16,7 +24,7 @@ public class MyService extends Service {
     private boolean isServiceRunning = false;
     private Handler handler;
     private Runnable tarea;
-    File internalStorageDir = getFilesDir();
+    File internalStorageDir;
 
     @Override
     public void onCreate() {
@@ -56,25 +64,94 @@ public class MyService extends Service {
     }
 
     private void startLoop() {
+        String pathSDCard = System.getenv("SECONDARY_STORAGE"); // LA VERDADERA RUTA A LA SD
+        File rutaSD = new File(pathSDCard);
+        //Uri sdCardRoot = DocumentFile.fromFile(Environment.getExternalStorageDirectory()).getUri();
+        Uri sdCardRoot = DocumentFile.fromFile(rutaSD).getUri();
+
+        DocumentFile uriSDcard = DocumentFile.fromSingleUri(this, sdCardRoot);
+        internalStorageDir = Environment.getExternalStorageDirectory();
+
+
+        /*DocumentFile uriSDcardFinal;
+
+        if(uriSDcard.findFile("SD") == null){
+            uriSDcardFinal = uriSDcard.createDirectory("SD");
+        }else{
+            Uri uriSDcard_1 = DocumentFile.fromFile(new File(pathSDCard+"SD")).getUri();
+            DocumentFile uriSDcard_2 = DocumentFile.fromSingleUri(this, uriSDcard_1);
+            uriSDcardFinal = uriSDcard_2;
+        }*/
+
+        //String folderDestino = pathSDCard+File.separator+"SD";
+        //File folder = new File(uriSDcard.getUri().getPath());
         tarea = new Runnable() {
-            File folder = new File(internalStorageDir.getPath());
-            File[] files = folder.listFiles();
+            //File[] lista = folder.listFiles();
+            File[] files = internalStorageDir.listFiles();
             int cont = 0;
             @Override
             public void run() {
-                //Log.i("Contador","Iteración: "+cont);
-                //cont++;
+                if(files != null){
+                    for( File file : files){
+                        if(file.getName().endsWith("mp4")){
+                            Log.d("NombreArchivo", file.getName());
 
-                for( File file : files){
-                    Log.d("NombreArchivo", file.getName());
+                            //moverArchivo(folderDestino, file);
+                            moverArchivo(uriSDcard, file);
+                        }
+                    }
+                }else{
+                    Log.i("validación", "Array files vacio");
                 }
-                handler.postDelayed(this, 1000); // ejecutar lo que esta dentro del run cada 1 segundos
+
+                /*for(File item : lista){
+                    Log.i("Lista SD", item.getName());
+                }*/
+
+                handler.postDelayed(this, 10*1000); // ejecutar lo que esta dentro del run cada 1 segundos
             }
         };
         handler.post(tarea);
     }
 
+    private int moverArchivo(DocumentFile sdCardPath, File file){
+        if(file == null){
+            return 0;
+        }
 
+        try {
+            //File destinationFile = new File(sdCardPath, file.getName());
+            //DocumentFile newFile = sdCardPath.createFile("*/*", file.getName());
+
+            // Crear streams de entrada y salida
+            FileInputStream inputStream = new FileInputStream(file);
+            FileOutputStream outputStream = new FileOutputStream(sdCardPath.getUri().getPath()+"/SD/"+file.getName());
+            //FileOutputStream outputStream = (FileOutputStream) getContentResolver().openOutputStream(newFile.getUri());
+
+            // Preparar un búfer para la transferencia
+            byte[] buffer = new byte[1024];
+            int length;
+
+            // Realizar la copia del archivo
+            while ((length = inputStream.read(buffer)) > 0) {
+                outputStream.write(buffer, 0, length);
+            }
+
+            // Cerrar los streams después de la copia
+            inputStream.close();
+            outputStream.close();
+
+            // Si llegamos aquí, la copia fue exitosa
+
+            //borrar el archivo despues de copiarlo
+            file.delete();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            // Manejar cualquier error que pueda ocurrir durante la copia
+        }
+        return 1;
+    }
 
     private void transferVideos() {
         // Ruta de la carpeta de videos en la memoria interna
